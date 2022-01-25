@@ -1,0 +1,20 @@
+source $MY_PATH/utils/log.sh
+
+func_sanitize_var_default() {
+	var_name="$1"
+	default_value="$2"
+
+	if [ $(eval 'printf 1$'$var_name) == "1" ] ; then
+		func_log_info "Variable $var_name is blank! Setting default value $default_value"
+		eval $var_name"=${default_value}"
+	fi
+}
+
+func_sanitize_var_path() {
+	var_name="$1"
+
+	orig_path=$(eval 'echo $'${var_name})
+	if ! [ -z "$orig_path" ]; then
+		eval $var_name"=$(realpath ${orig_path})"
+	fi
+}
