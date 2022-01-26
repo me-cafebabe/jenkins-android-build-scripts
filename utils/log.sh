@@ -23,8 +23,7 @@ func_log_border() {
 func_log_vars() {
 	func_log_border
 	for var in $*; do
-		# TODO: Avoid 2>/dev/null?
 		echo "[${var}]=[$(eval echo '$'${var})]"
-	done
+	done | sort
 	func_log_border
 }
