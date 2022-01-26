@@ -319,7 +319,7 @@ if [ -d "$WORKSPACE" ] && ! [ -z "$WORKSPACE_COPY" ]; then
     if [ "$DRY_RUN" == "true" ]; then
         func_exec_bash "ls ${WORKSPACE_COPY_ACTUAL} ; exit 0"
     else
-        if ! func_exec_bash "cp -vr ${WORKSPACE_COPY_ACTUAL} ${WORKSPACE}"; then
+        if ! func_exec_bash "cp -vr ${WORKSPACE_COPY_ACTUAL} ${WORKSPACE} ; exit 0"; then
             func_abort_with_msg "Failed to copy out target files to workspace directory."
         fi
     fi
