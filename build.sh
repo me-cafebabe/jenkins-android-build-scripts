@@ -297,24 +297,28 @@ else
 fi
 func_log_info "Generated build command: \"${BUILD_CMD}\""
 
-# Dry run
-if [ "$DRY_RUN" == "true" ]; then exit ; fi
-
 # Run the build
 func_log_border
 func_log_info "Starting the build."
-if func_exec_bash "${BUILD_CMD}"; then
-    func_log_info "Build finished."
-else
-    func_abort_with_msg "Build failed."
+if [ "$DRY_RUN" != "true" ]; then
+    if func_exec_bash "${BUILD_CMD}"; then
+        func_log_info "Build finished."
+    else
+        func_abort_with_msg "Build failed."
+    fi
 fi
 
 # Copy out target files to workspace directory
 if [ -d "$WORKSPACE" ] && ! [ -z "$WORKSPACE_COPY" ]; then
     func_log_border
     func_log_info "Copy out target files to workspace directory."
-    if ! func_exec_bash "cp -vr ${OUT_DIR}/target/product/${DEVICE}/${WORKSPACE_COPY} ${WORKSPACE}"; then
-        func_abort_with_msg "Failed to copy out target files to workspace directory."
+    WORKSPACE_COPY_ACTUAL="${OUT_DIR}/target/product/${DEVICE}/${WORKSPACE_COPY}"
+    if [ "$DRY_RUN" == "true" ]; then
+        func_exec_bash "ls ${WORKSPACE_COPY_ACTUAL} ; exit 0"
+    else
+        if ! func_exec_bash "cp -vr ${WORKSPACE_COPY_ACTUAL} ${WORKSPACE}"; then
+            func_abort_with_msg "Failed to copy out target files to workspace directory."
+        fi
     fi
 fi
 
