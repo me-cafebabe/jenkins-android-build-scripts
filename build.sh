@@ -29,6 +29,8 @@ func_help() {
     echo "  --out-dir | OUT_DIR: Output Directory"
     echo "  --out-soong-dir | OUT_SOONG_DIR: Out soong Directory"
     echo "  --out-soong-is-symlink | OUT_SOONG_IS_SYMLINK: Indicating if out/soong is symlink"
+    echo "  --workspace | WORKSPACE: Jenkins Workspace Directory, for uploading artifacts"
+    echo "  --workspace-copy | WORKSPACE_COPY: Copy out target files to workspace directory. Specify this like \"{vendor/build.prop,lineage-18.1-*.zip,boot.img}\""
     echo
     echo "Misc:"
     echo "  --env-script | ENV_SCRIPT: Script to load environment variables"
@@ -109,6 +111,18 @@ while [ "${#}" -gt 0 ]; do
             ALLOW_MISSING_DEPENDENCIES="true"
             shift
             ;;
+        --workspace )
+            func_validate_parameter_value "${1}" "${2}"
+            WORKSPACE="${2}"
+            shift
+            shift
+            ;;
+        --workspace-copy )
+            func_validate_parameter_value "${1}" "${2}"
+            WORKSPACE_COPY="${2}"
+            shift
+            shift
+            ;;
         # optional bools
         --allow-vendorsetup-sh )
             ALLOW_VENDORSETUP_SH="true"
@@ -154,7 +168,8 @@ fi
 func_log_vars "DEVICE" "TREE_PATH" "CCACHE_DIR" "CCACHE_SIZE" \
     "BUILD_METHOD" "OUT_DIR" "OUT_SOONG_DIR" "OUT_SOONG_IS_SYMLINK" \
     "ALLOW_VENDORSETUP_SH" "CLEANUP_OUT_TARGET" "ENV_SCRIPT" "DRY_RUN" \
-    "ALLOW_MISSING_DEPENDENCIES" "BUILD_MODULE" "BUILD_TARGET"
+    "ALLOW_MISSING_DEPENDENCIES" "BUILD_MODULE" "BUILD_TARGET" "WORKSPACE" \
+    "WORKSPACE_COPY"
 
 # Variable sanitization
 func_log_info "Sanitize variables."
@@ -229,12 +244,14 @@ func_sanitize_var_path "ENV_SCRIPT"
 func_sanitize_var_path "OUT_DIR"
 func_sanitize_var_path "OUT_SOONG_DIR"
 func_sanitize_var_path "TREE_PATH"
+func_sanitize_var_path "WORKSPACE"
 
 # Print info
 func_log_vars "DEVICE" "TREE_PATH" "CCACHE_DIR" "CCACHE_SIZE" \
     "BUILD_METHOD" "OUT_DIR" "OUT_SOONG_DIR" "OUT_SOONG_IS_SYMLINK" \
     "ALLOW_VENDORSETUP_SH" "CLEANUP_OUT_TARGET" "ENV_SCRIPT" "DRY_RUN" \
-    "ALLOW_MISSING_DEPENDENCIES" "BUILD_MODULE" "BUILD_TARGET"
+    "ALLOW_MISSING_DEPENDENCIES" "BUILD_MODULE" "BUILD_TARGET" "WORKSPACE" \
+    "WORKSPACE_COPY"
 
 # Preparation
 if [ "$ALLOW_VENDORSETUP_SH" == "true" ]; then
@@ -286,5 +303,21 @@ if [ "$DRY_RUN" == "true" ]; then exit ; fi
 # Run the build
 func_log_border
 func_log_info "Starting the build."
-func_exec_bash "${BUILD_CMD}"
-exit $?
+if func_exec_bash "${BUILD_CMD}"; then
+    func_log_info "Build finished."
+else
+    func_abort_with_msg "Build failed."
+fi
+
+# Copy out target files to workspace directory
+if [ -d "$WORKSPACE" ] && ! [ -z "$WORKSPACE_COPY" ]; then
+    func_log_border
+    func_log_info "Copy out target files to workspace directory."
+    if ! func_exec_bash "cp -vr ${OUT_DIR}/target/product/${DEVICE}/${WORKSPACE_COPY} ${WORKSPACE}"; then
+        func_abort_with_msg "Failed to copy out target files to workspace directory."
+    fi
+fi
+
+# End
+func_log_info "Done."
+exit 0
