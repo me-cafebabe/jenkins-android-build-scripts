@@ -38,7 +38,7 @@ func_help() {
     echo "  --help: Print this help text."
 }
 
-if [ -z "$@" ]; then
+if [ "$#" -eq 0 ]; then
     func_help
     exit 0
 fi
