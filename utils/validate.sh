@@ -10,7 +10,7 @@ func_validate_codename() {
 
 func_validate_modulename() {
 	str="$1"
-	if echo "$str"|grep -E "^[a-zA-Z0-9|_|-|@|\.]+$" > /dev/null; then
+	if echo "$str"|grep -E "^[a-zA-Z0-9|_|-|@|\.|:]+$" > /dev/null; then
 		return 0
 	else
 		return 1
