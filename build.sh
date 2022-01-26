@@ -43,6 +43,9 @@ if [ -z "$@" ]; then
     exit 0
 fi
 
+# Disable globbing
+set -f
+
 # Parameters
 while [ "${#}" -gt 0 ]; do
     case "${1}" in
