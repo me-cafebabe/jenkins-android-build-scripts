@@ -25,7 +25,7 @@ func_help() {
     echo "  --build-method | BUILD_METHOD: Build Method. Value can be mka_bacon or brunch_target"
     echo "  --build-module | BUILD_MODULE: Build specific module. (make -j$(nproc) MODULE)"
     echo "  --build-target | BUILD_TARGET: Build Target. (e.g. vendorimage or recoveryimage)"
-    echo "  --cleanup-out-target | CLEANUP_OUT_TARGET: Allow vendorsetup.sh"
+    echo "  --cleanup-out-device | CLEANUP_OUT_DEVICE: Cleanup out device directory"
     echo "  --out-dir | OUT_DIR: Output Directory"
     echo "  --out-soong-dir | OUT_SOONG_DIR: Out soong Directory"
     echo "  --out-soong-is-symlink | OUT_SOONG_IS_SYMLINK: Indicating if out/soong is symlink"
@@ -131,8 +131,8 @@ while [ "${#}" -gt 0 ]; do
             ALLOW_VENDORSETUP_SH="true"
             shift
             ;;
-        --cleanup-out-target )
-            CLEANUP_OUT_TARGET="true"
+        --cleanup-out-device )
+            CLEANUP_OUT_DEVICE="true"
             shift
             ;;
         # misc
@@ -170,7 +170,7 @@ fi
 # Print info
 func_log_vars "DEVICE" "TREE_PATH" "CCACHE_DIR" "CCACHE_SIZE" \
     "BUILD_METHOD" "OUT_DIR" "OUT_SOONG_DIR" "OUT_SOONG_IS_SYMLINK" \
-    "ALLOW_VENDORSETUP_SH" "CLEANUP_OUT_TARGET" "ENV_SCRIPT" "DRY_RUN" \
+    "ALLOW_VENDORSETUP_SH" "CLEANUP_OUT_DEVICE" "ENV_SCRIPT" "DRY_RUN" \
     "ALLOW_MISSING_DEPENDENCIES" "BUILD_MODULE" "BUILD_TARGET" "WORKSPACE" \
     "WORKSPACE_COPY"
 
@@ -252,7 +252,7 @@ func_sanitize_var_path "WORKSPACE"
 # Print info
 func_log_vars "DEVICE" "TREE_PATH" "CCACHE_DIR" "CCACHE_SIZE" \
     "BUILD_METHOD" "OUT_DIR" "OUT_SOONG_DIR" "OUT_SOONG_IS_SYMLINK" \
-    "ALLOW_VENDORSETUP_SH" "CLEANUP_OUT_TARGET" "ENV_SCRIPT" "DRY_RUN" \
+    "ALLOW_VENDORSETUP_SH" "CLEANUP_OUT_DEVICE" "ENV_SCRIPT" "DRY_RUN" \
     "ALLOW_MISSING_DEPENDENCIES" "BUILD_MODULE" "BUILD_TARGET" "WORKSPACE" \
     "WORKSPACE_COPY"
 
@@ -264,7 +264,7 @@ else
     func_log_info "vendorsetup.sh is disallowed. Creating device/allowed-vendorsetup_sh-files"
     func_exec_bash "cd $TREE_PATH && touch device/allowed-vendorsetup_sh-files"
 fi
-if [ "$CLEANUP_OUT_TARGET" == "true" ]; then
+if [ "$CLEANUP_OUT_DEVICE" == "true" ]; then
     func_log_info "Cleaning up out target directory."
     func_exec_bash "rm -rf $OUT_DIR/target/product/$DEVICE"
 fi
@@ -312,14 +312,14 @@ if [ "$DRY_RUN" != "true" ]; then
 fi
 
 # Copy out target files to workspace directory
+OUT_DEVICE_DIR="${OUT_DIR}/target/product/${DEVICE}/"
 if [ -d "$WORKSPACE" ] && ! [ -z "$WORKSPACE_COPY" ]; then
     func_log_border
     func_log_info "Copy out target files to workspace directory."
-    WORKSPACE_COPY_ACTUAL="${OUT_DIR}/target/product/${DEVICE}/${WORKSPACE_COPY}"
     if [ "$DRY_RUN" == "true" ]; then
-        func_exec_bash "ls ${WORKSPACE_COPY_ACTUAL} ; exit 0"
+        func_exec_bash "cd ${OUT_DEVICE_DIR} && ls ${WORKSPACE_COPY} ; exit 0"
     else
-        if ! func_exec_bash "cp -vr ${WORKSPACE_COPY_ACTUAL} ${WORKSPACE} ; exit 0"; then
+        if ! func_exec_bash "cd ${OUT_DEVICE_DIR} && cp -vr --parents ${WORKSPACE_COPY} ${WORKSPACE}/ ; exit 0"; then
             func_abort_with_msg "Failed to copy out target files to workspace directory."
         fi
     fi
