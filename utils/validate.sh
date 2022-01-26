@@ -8,6 +8,15 @@ func_validate_codename() {
 	fi
 }
 
+func_validate_modulename() {
+	str="$1"
+	if echo "$str"|grep -E "^[a-zA-Z0-9|_|-|@|\.]+$" > /dev/null; then
+		return 0
+	else
+		return 1
+	fi
+}
+
 func_validate_parameter_value() {
 	case "${2}" in
 		-*)

@@ -12,7 +12,7 @@ source $MY_PATH/utils/validate.sh
 # Print help text
 func_help() {
     echo "Required parameters or variables:"
-    echo "  --target | TARGET: Build Target"
+    echo "  --device | DEVICE: Target device"
     echo "  --tree-path | TREE_PATH: Path to the ROM tree"
     echo
     echo "Ccache options:"
@@ -22,8 +22,10 @@ func_help() {
     echo "Optional:"
     echo "  --allow-missing-dependencies | ALLOW_MISSING_DEPENDENCIES: Allow missing dependencies"
     echo "  --allow-vendorsetup-sh | ALLOW_VENDORSETUP_SH: Allow vendorsetup.sh"
+    echo "  --build-method | BUILD_METHOD: Build Method. Value can be mka_bacon or brunch_target"
+    echo "  --build-module | BUILD_MODULE: Build specific module. (make -j$(nproc) MODULE)"
+    echo "  --build-target | BUILD_TARGET: Build Target. (e.g. vendorimage or recoveryimage)"
     echo "  --cleanup-out-target | CLEANUP_OUT_TARGET: Allow vendorsetup.sh"
-    echo "  --build-method | BUILD_METHOD: mka_bacon or brunch_target"
     echo "  --out-dir | OUT_DIR: Output Directory"
     echo "  --out-soong-dir | OUT_SOONG_DIR: Out soong Directory"
     echo "  --out-soong-is-symlink | OUT_SOONG_IS_SYMLINK: Indicating if out/soong is symlink"
@@ -43,9 +45,9 @@ fi
 while [ "${#}" -gt 0 ]; do
     case "${1}" in
         # Required
-        --target )
+        --device )
             func_validate_parameter_value "${1}" "${2}"
-            TARGET="${2}"
+            DEVICE="${2}"
             shift
             shift
             ;;
@@ -72,6 +74,18 @@ while [ "${#}" -gt 0 ]; do
         --build-method )
             func_validate_parameter_value "${1}" "${2}"
             BUILD_METHOD="${2}"
+            shift
+            shift
+            ;;
+        --build-module )
+            func_validate_parameter_value "${1}" "${2}"
+            BUILD_MODULE="${2}"
+            shift
+            shift
+            ;;
+        --build-target )
+            func_validate_parameter_value "${1}" "${2}"
+            BUILD_TARGET="${2}"
             shift
             shift
             ;;
@@ -137,16 +151,16 @@ if [ -f "$ENV_SCRIPT" ]; then
 fi
 
 # Print info
-func_log_vars "TARGET" "TREE_PATH" "CCACHE_DIR" "CCACHE_SIZE" \
+func_log_vars "DEVICE" "TREE_PATH" "CCACHE_DIR" "CCACHE_SIZE" \
     "BUILD_METHOD" "OUT_DIR" "OUT_SOONG_DIR" "OUT_SOONG_IS_SYMLINK" \
     "ALLOW_VENDORSETUP_SH" "CLEANUP_OUT_TARGET" "ENV_SCRIPT" "DRY_RUN" \
-    "ALLOW_MISSING_DEPENDENCIES"
+    "ALLOW_MISSING_DEPENDENCIES" "BUILD_MODULE" "BUILD_TARGET"
 
 # Variable sanitization
 func_log_info "Sanitize variables."
-func_abort_if_blank_param_or_var "--target" "TARGET"
-if ! func_validate_codename "$TARGET"; then
-    func_abort_with_msg "Invalid target: $TARGET"
+func_abort_if_blank_param_or_var "--device" "DEVICE"
+if ! func_validate_codename "$DEVICE"; then
+    func_abort_with_msg "Invalid device: $DEVICE"
 fi
 func_abort_if_blank_param_or_var "--tree-path" "TREE_PATH"
 if ! [ -f "$TREE_PATH/build/make/envsetup.sh" ]; then
@@ -200,6 +214,15 @@ case "$BUILD_METHOD" in
         func_abort_with_msg "Invalid build method: $BUILD_METHOD"
         ;;
 esac
+if ! [ -z "$BUILD_MODULE" ]; then
+    if ! func_validate_modulename "$BUILD_MODULE"; then
+        func_abort_with_msg "Invalid module name: $BUILD_MODULE"
+    fi
+elif ! [ -z "$BUILD_TARGET" ]; then
+    if ! func_validate_codename "$BUILD_TARGET"; then
+        func_abort_with_msg "Invalid target name: $BUILD_TARGET"
+    fi
+fi
 
 func_sanitize_var_path "CCACHE_DIR"
 func_sanitize_var_path "ENV_SCRIPT"
@@ -208,10 +231,10 @@ func_sanitize_var_path "OUT_SOONG_DIR"
 func_sanitize_var_path "TREE_PATH"
 
 # Print info
-func_log_vars "TARGET" "TREE_PATH" "CCACHE_DIR" "CCACHE_SIZE" \
+func_log_vars "DEVICE" "TREE_PATH" "CCACHE_DIR" "CCACHE_SIZE" \
     "BUILD_METHOD" "OUT_DIR" "OUT_SOONG_DIR" "OUT_SOONG_IS_SYMLINK" \
     "ALLOW_VENDORSETUP_SH" "CLEANUP_OUT_TARGET" "ENV_SCRIPT" "DRY_RUN" \
-    "ALLOW_MISSING_DEPENDENCIES"
+    "ALLOW_MISSING_DEPENDENCIES" "BUILD_MODULE" "BUILD_TARGET"
 
 # Preparation
 if [ "$ALLOW_VENDORSETUP_SH" == "true" ]; then
@@ -223,7 +246,7 @@ else
 fi
 if [ "$CLEANUP_OUT_TARGET" == "true" ]; then
     func_log_info "Cleaning up out target directory."
-    func_exec_bash "rm -rf $OUT_DIR/target/product/$TARGET"
+    func_exec_bash "rm -rf $OUT_DIR/target/product/$DEVICE"
 fi
 
 # Generate build command
@@ -238,14 +261,23 @@ if ! [ -z "$CCACHE_SIZE" ]; then
     BUILD_CMD+=" && ccache -M ${CCACHE_SIZE}"
 fi
 BUILD_CMD+=" && source build/envsetup.sh"
-case "$BUILD_METHOD" in
-    mka_bacon)
-        BUILD_CMD+=" && breakfast ${TARGET} && mka bacon"
-        ;;
-    brunch_target)
-        BUILD_CMD+=" && brunch ${TARGET}"
-        ;;
-esac
+if ! [ -z "$BUILD_MODULE" ]; then
+    func_log_info "Build module: $BUILD_MODULE"
+    BUILD_CMD+=" && breakfast ${DEVICE} && mma ${BUILD_MODULE}"
+elif ! [ -z "$BUILD_TARGET" ]; then
+    func_log_info "Build target: $BUILD_TARGET"
+    BUILD_CMD+=" && breakfast ${DEVICE} && mka ${BUILD_TARGET}"
+else
+    func_log_info "Build ROM."
+    case "$BUILD_METHOD" in
+        mka_bacon)
+            BUILD_CMD+=" && breakfast ${DEVICE} && mka bacon"
+            ;;
+        brunch_target)
+            BUILD_CMD+=" && brunch ${DEVICE}"
+            ;;
+    esac
+fi
 func_log_info "Generated build command: \"${BUILD_CMD}\""
 
 # Dry run
