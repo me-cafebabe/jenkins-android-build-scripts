@@ -20,12 +20,13 @@ func_help() {
     echo "  --ccache-size | CCACHE_SIZE: ccache Size"
     echo
     echo "Optional:"
+    echo "  --allow-missing-dependencies | ALLOW_MISSING_DEPENDENCIES: Allow missing dependencies"
+    echo "  --allow-vendorsetup-sh | ALLOW_VENDORSETUP_SH: Allow vendorsetup.sh"
+    echo "  --cleanup-out-target | CLEANUP_OUT_TARGET: Allow vendorsetup.sh"
     echo "  --build-method | BUILD_METHOD: mka_bacon or brunch_target"
     echo "  --out-dir | OUT_DIR: Output Directory"
     echo "  --out-soong-dir | OUT_SOONG_DIR: Out soong Directory"
     echo "  --out-soong-is-symlink | OUT_SOONG_IS_SYMLINK: Indicating if out/soong is symlink"
-    echo "  --allow-vendorsetup-sh | ALLOW_VENDORSETUP_SH: Allow vendorsetup.sh"
-    echo "  --cleanup-out-target | CLEANUP_OUT_TARGET: Allow vendorsetup.sh"
     echo
     echo "Misc:"
     echo "  --env-script | ENV_SCRIPT: Script to load environment variables"
@@ -90,6 +91,10 @@ while [ "${#}" -gt 0 ]; do
             OUT_SOONG_IS_SYMLINK="true"
             shift
             ;;
+        --allow-missing-dependencies )
+            ALLOW_MISSING_DEPENDENCIES="true"
+            shift
+            ;;
         # optional bools
         --allow-vendorsetup-sh )
             ALLOW_VENDORSETUP_SH="true"
@@ -134,9 +139,11 @@ fi
 # Print info
 func_log_vars "TARGET" "TREE_PATH" "CCACHE_DIR" "CCACHE_SIZE" \
     "BUILD_METHOD" "OUT_DIR" "OUT_SOONG_DIR" "OUT_SOONG_IS_SYMLINK" \
-    "ALLOW_VENDORSETUP_SH" "CLEANUP_OUT_TARGET" "ENV_SCRIPT" "DRY_RUN"
+    "ALLOW_VENDORSETUP_SH" "CLEANUP_OUT_TARGET" "ENV_SCRIPT" "DRY_RUN" \
+    "ALLOW_MISSING_DEPENDENCIES"
 
 # Variable sanitization
+func_log_info "Sanitize variables."
 func_abort_if_blank_param_or_var "--target" "TARGET"
 if ! func_validate_codename "$TARGET"; then
     func_abort_with_msg "Invalid target: $TARGET"
@@ -203,7 +210,8 @@ func_sanitize_var_path "TREE_PATH"
 # Print info
 func_log_vars "TARGET" "TREE_PATH" "CCACHE_DIR" "CCACHE_SIZE" \
     "BUILD_METHOD" "OUT_DIR" "OUT_SOONG_DIR" "OUT_SOONG_IS_SYMLINK" \
-    "ALLOW_VENDORSETUP_SH" "CLEANUP_OUT_TARGET" "ENV_SCRIPT" "DRY_RUN"
+    "ALLOW_VENDORSETUP_SH" "CLEANUP_OUT_TARGET" "ENV_SCRIPT" "DRY_RUN" \
+    "ALLOW_MISSING_DEPENDENCIES"
 
 # Preparation
 if [ "$ALLOW_VENDORSETUP_SH" == "true" ]; then
@@ -222,6 +230,9 @@ fi
 func_log_border
 BUILD_CMD+="cd ${TREE_PATH}"
 BUILD_CMD+=" && export LC_ALL=C"
+if [ "$ALLOW_MISSING_DEPENDENCIES" == "true" ]; then
+    BUILD_CMD+=" && export ALLOW_MISSING_DEPENDENCIES=true"
+fi
 if ! [ -z "$CCACHE_SIZE" ]; then
     BUILD_CMD+=" && export USE_CCACHE=1 CCACHE_DIR=${CCACHE_DIR}"
     BUILD_CMD+=" && ccache -M ${CCACHE_SIZE}"
