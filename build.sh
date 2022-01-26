@@ -12,8 +12,31 @@ source $MY_PATH/utils/validate.sh
 # Print help text
 func_help() {
     echo "Required parameters or variables:"
+    echo "  --target | TARGET: Build Target"
     echo "  --tree-path | TREE_PATH: Path to the ROM tree"
+    echo
+    echo "Ccache options:"
+    echo "  --ccache-dir | CCACHE_DIR: ccache Directory"
+    echo "  --ccache-size | CCACHE_SIZE: ccache Size"
+    echo
+    echo "Optional:"
+    echo "  --build-method | BUILD_METHOD: mka_bacon or brunch_target"
+    echo "  --out-dir | OUT_DIR: Output Directory"
+    echo "  --out-soong-dir | OUT_SOONG_DIR: Out soong Directory"
+    echo "  --out-soong-is-symlink | OUT_SOONG_IS_SYMLINK: Indicating if out/soong is symlink"
+    echo "  --allow-vendorsetup-sh | ALLOW_VENDORSETUP_SH: Allow vendorsetup.sh"
+    echo "  --cleanup-out-target | CLEANUP_OUT_TARGET: Allow vendorsetup.sh"
+    echo
+    echo "Misc:"
+    echo "  --env-script | ENV_SCRIPT: Script to load environment variables"
+    echo "  --dry-run | DRY_RUN: Skip starting the build"
+    echo "  --help: Print this help text."
 }
+
+if [ -z "$@" ]; then
+    func_help
+    exit 0
+fi
 
 # Parameters
 while [ "${#}" -gt 0 ]; do
