@@ -321,6 +321,13 @@ if ! [ -z "$CCACHE_SIZE" ]; then
 fi
 BUILD_CMD+=" && source build/envsetup.sh"
 BUILD_CMD+=" && breakfast ${ROM_NAME}_${DEVICE}-${BUILD_FLAVOR}"
+if [ -x "${MY_PATH}/device/${DEVICE}/pre-build.sh" ]; then
+    func_log_info "Detected device specific pre-build script, Will execute it before building."
+    BUILD_CMD+=" &&"
+    BUILD_CMD+=" ROM_NAME=\"${ROM_NAME}\""
+    BUILD_CMD+=" TREE_PATH=\"${TREE_PATH}\""
+    BUILD_CMD+=" ${MY_PATH}/device/${DEVICE}/pre-build.sh"
+fi
 if ! [ -z "$BUILD_MODULE" ]; then
     func_log_info "Build module: $BUILD_MODULE"
     BUILD_CMD+=" && mma ${BUILD_MODULE}"
@@ -337,6 +344,13 @@ else
             BUILD_CMD+=" && brunch ${ROM_NAME}_${DEVICE}-${BUILD_FLAVOR}"
             ;;
     esac
+fi
+if [ -x "${MY_PATH}/device/${DEVICE}/post-build.sh" ]; then
+    func_log_info "Detected device specific post-build script, Will execute it after building."
+    BUILD_CMD+=" &&"
+    BUILD_CMD+=" ROM_NAME=\"${ROM_NAME}\""
+    BUILD_CMD+=" TREE_PATH=\"${TREE_PATH}\""
+    BUILD_CMD+=" ${MY_PATH}/device/${DEVICE}/post-build.sh"
 fi
 func_log_info "Generated build command: \"${BUILD_CMD}\""
 
