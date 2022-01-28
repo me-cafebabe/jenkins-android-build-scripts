@@ -14,6 +14,7 @@ func_help() {
     echo "Required parameters or variables:"
     echo "  --device | DEVICE: Target device"
     echo "  --tree-path | TREE_PATH: Path to the ROM tree"
+    echo "  --rom-name | ROM_NAME: Name of the ROM, such as lineage."
     echo
     echo "Ccache options:"
     echo "  --ccache-dir | CCACHE_DIR: ccache Directory"
@@ -22,10 +23,12 @@ func_help() {
     echo "Optional:"
     echo "  --allow-missing-dependencies | ALLOW_MISSING_DEPENDENCIES: Allow missing dependencies"
     echo "  --allow-vendorsetup-sh | ALLOW_VENDORSETUP_SH: Allow vendorsetup.sh"
+    echo "  --build-flavor | BUILD_FLAVOR: Build Flavor. Values are user, userdebug or eng."
     echo "  --build-method | BUILD_METHOD: Build Method. Value can be mka_bacon or brunch_target"
     echo "  --build-module | BUILD_MODULE: Build specific module. (make -j$(nproc) MODULE)"
     echo "  --build-target | BUILD_TARGET: Build Target. (e.g. vendorimage or recoveryimage)"
     echo "  --cleanup-out-device | CLEANUP_OUT_DEVICE: Cleanup out device directory"
+    echo "  --cleanup-out-device-all | CLEANUP_OUT_DEVICE_ALL: Cleanup ALL out device directories"
     echo "  --out-dir | OUT_DIR: Output Directory"
     echo "  --out-soong-dir | OUT_SOONG_DIR: Out soong Directory"
     echo "  --out-soong-is-symlink | OUT_SOONG_IS_SYMLINK: Indicating if out/soong is symlink"
@@ -46,7 +49,7 @@ fi
 # Disable globbing
 set -f
 
-# Parameters
+# Parse Parameters
 while [ "${#}" -gt 0 ]; do
     case "${1}" in
         # Required
@@ -59,6 +62,12 @@ while [ "${#}" -gt 0 ]; do
         --tree-path )
             func_validate_parameter_value "${1}" "${2}"
             TREE_PATH="${2}"
+            shift
+            shift
+            ;;
+        --rom-name )
+            func_validate_parameter_value "${1}" "${2}"
+            ROM_NAME="${2}"
             shift
             shift
             ;;
@@ -76,6 +85,12 @@ while [ "${#}" -gt 0 ]; do
             shift
             ;;
         # optional
+        --build-flavor )
+            func_validate_parameter_value "${1}" "${2}"
+            BUILD_FLAVOR="${2}"
+            shift
+            shift
+            ;;
         --build-method )
             func_validate_parameter_value "${1}" "${2}"
             BUILD_METHOD="${2}"
@@ -135,6 +150,10 @@ while [ "${#}" -gt 0 ]; do
             CLEANUP_OUT_DEVICE="true"
             shift
             ;;
+        --cleanup-out-device-all )
+            CLEANUP_OUT_DEVICE_ALL="true"
+            shift
+            ;;
         # misc
         --env-script )
             func_validate_parameter_value "${1}" "${2}"
@@ -172,7 +191,7 @@ func_log_vars "DEVICE" "TREE_PATH" "CCACHE_DIR" "CCACHE_SIZE" \
     "BUILD_METHOD" "OUT_DIR" "OUT_SOONG_DIR" "OUT_SOONG_IS_SYMLINK" \
     "ALLOW_VENDORSETUP_SH" "CLEANUP_OUT_DEVICE" "ENV_SCRIPT" "DRY_RUN" \
     "ALLOW_MISSING_DEPENDENCIES" "BUILD_MODULE" "BUILD_TARGET" "WORKSPACE" \
-    "WORKSPACE_COPY"
+    "WORKSPACE_COPY" "BUILD_FLAVOR" "CLEANUP_OUT_DEVICE_ALL" "ROM_NAME"
 
 # Variable sanitization
 func_log_info "Sanitize variables."
@@ -183,6 +202,10 @@ fi
 func_abort_if_blank_param_or_var "--tree-path" "TREE_PATH"
 if ! [ -f "$TREE_PATH/build/make/envsetup.sh" ]; then
     func_abort_with_msg "Tree path $TREE_PATH is invalid!"
+fi
+func_abort_if_blank_param_or_var "--rom-name" "ROM_NAME"
+if ! func_validate_codename "$ROM_NAME"; then
+    func_abort_with_msg "Invalid ROM Name: $ROM_NAME"
 fi
 if [ -z "$OUT_DIR" ]; then
     OUT_DIR="$TREE_PATH/out"
@@ -222,6 +245,16 @@ if ! [ -z "$CCACHE_SIZE" ]; then
         func_abort_with_msg "ccache dir $CCACHE_DIR is invalid!"
     fi
 fi
+case "$BUILD_FLAVOR" in
+    user|userdebug|eng)
+        ;;
+    "")
+        BUILD_FLAVOR="userdebug"
+        ;;
+    *)
+        func_abort_with_msg "Invalid build flavor: $BUILD_FLAVOR"
+        ;;
+esac
 case "$BUILD_METHOD" in
     mka_bacon|brunch_target)
         ;;
@@ -254,19 +287,25 @@ func_log_vars "DEVICE" "TREE_PATH" "CCACHE_DIR" "CCACHE_SIZE" \
     "BUILD_METHOD" "OUT_DIR" "OUT_SOONG_DIR" "OUT_SOONG_IS_SYMLINK" \
     "ALLOW_VENDORSETUP_SH" "CLEANUP_OUT_DEVICE" "ENV_SCRIPT" "DRY_RUN" \
     "ALLOW_MISSING_DEPENDENCIES" "BUILD_MODULE" "BUILD_TARGET" "WORKSPACE" \
-    "WORKSPACE_COPY"
+    "WORKSPACE_COPY" "BUILD_FLAVOR" "CLEANUP_OUT_DEVICE_ALL" "ROM_NAME"
 
 # Preparation
-if [ "$ALLOW_VENDORSETUP_SH" == "true" ]; then
-    func_log_info "vendorsetup.sh is allowed. Removing device/allowed-vendorsetup_sh-files"
-    func_exec_bash "cd $TREE_PATH && rm device/allowed-vendorsetup_sh-files; exit 0"
-else
-    func_log_info "vendorsetup.sh is disallowed. Creating device/allowed-vendorsetup_sh-files"
-    func_exec_bash "cd $TREE_PATH && touch device/allowed-vendorsetup_sh-files"
-fi
-if [ "$CLEANUP_OUT_DEVICE" == "true" ]; then
-    func_log_info "Cleaning up out target directory."
-    func_exec_bash "rm -rf $OUT_DIR/target/product/$DEVICE"
+if [ "$DRY_RUN" != "true" ]; then
+    if [ "$ALLOW_VENDORSETUP_SH" == "true" ]; then
+        func_log_info "vendorsetup.sh is allowed. Removing device/allowed-vendorsetup_sh-files"
+        func_exec_bash "cd $TREE_PATH && rm device/allowed-vendorsetup_sh-files; exit 0"
+    else
+        func_log_info "vendorsetup.sh is disallowed. Creating device/allowed-vendorsetup_sh-files"
+        func_exec_bash "cd $TREE_PATH && touch device/allowed-vendorsetup_sh-files"
+    fi
+    if [ "$CLEANUP_OUT_DEVICE" == "true" ]; then
+        func_log_info "Cleaning up out device directory."
+        func_exec_bash "rm -rf $OUT_DIR/target/product/$DEVICE"
+    fi
+    if [ "$CLEANUP_OUT_DEVICE_ALL" == "true" ]; then
+        func_log_info "Cleaning up ALL out device directories."
+        func_exec_bash "rm -rf $OUT_DIR/target/product/*"
+    fi
 fi
 
 # Generate build command
@@ -281,20 +320,21 @@ if ! [ -z "$CCACHE_SIZE" ]; then
     BUILD_CMD+=" && ccache -M ${CCACHE_SIZE}"
 fi
 BUILD_CMD+=" && source build/envsetup.sh"
+BUILD_CMD+=" && breakfast ${ROM_NAME}_${DEVICE}-${BUILD_FLAVOR}"
 if ! [ -z "$BUILD_MODULE" ]; then
     func_log_info "Build module: $BUILD_MODULE"
-    BUILD_CMD+=" && breakfast ${DEVICE} && mma ${BUILD_MODULE}"
+    BUILD_CMD+=" && mma ${BUILD_MODULE}"
 elif ! [ -z "$BUILD_TARGET" ]; then
     func_log_info "Build target: $BUILD_TARGET"
-    BUILD_CMD+=" && breakfast ${DEVICE} && mka ${BUILD_TARGET}"
+    BUILD_CMD+=" && mka ${BUILD_TARGET}"
 else
     func_log_info "Build ROM."
     case "$BUILD_METHOD" in
         mka_bacon)
-            BUILD_CMD+=" && breakfast ${DEVICE} && mka bacon"
+            BUILD_CMD+=" && mka bacon"
             ;;
         brunch_target)
-            BUILD_CMD+=" && brunch ${DEVICE}"
+            BUILD_CMD+=" && brunch ${ROM_NAME}_${DEVICE}-${BUILD_FLAVOR}"
             ;;
     esac
 fi
