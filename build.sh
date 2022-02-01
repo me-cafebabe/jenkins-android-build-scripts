@@ -309,7 +309,7 @@ if [ "$DRY_RUN" != "true" ]; then
 fi
 if ! [ -z "$WORKSPACE" ]; then
     func_log_info "Cleaning up workspace directory."
-    func_exec_bash "rm -rf $WORKSPACE && mkdir -p $WORKSPACE"
+    func_exec_bash "rm -rf '$WORKSPACE' && mkdir -p '$WORKSPACE'"
 fi
 
 # Generate build command
@@ -377,7 +377,7 @@ if [ -d "$WORKSPACE" ] && ! [ -z "$WORKSPACE_COPY" ]; then
     if [ "$DRY_RUN" == "true" ]; then
         func_exec_bash "cd ${OUT_DEVICE_DIR} && ls ${WORKSPACE_COPY} ; exit 0"
     else
-        if ! func_exec_bash "cd ${OUT_DEVICE_DIR} && cp -vr --parents ${WORKSPACE_COPY} ${WORKSPACE}/ ; exit 0"; then
+        if ! func_exec_bash "cd ${OUT_DEVICE_DIR} && cp -vr --parents ${WORKSPACE_COPY} '${WORKSPACE}'/ ; exit 0"; then
             func_abort_with_msg "Failed to copy out target files to workspace directory."
         fi
     fi
