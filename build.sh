@@ -307,6 +307,10 @@ if [ "$DRY_RUN" != "true" ]; then
         func_exec_bash "rm -rf $OUT_DIR/target/product/*"
     fi
 fi
+if ! [ -z "$WORKSPACE" ]; then
+    func_log_info "Cleaning up workspace directory."
+    func_exec_bash "rm -rf $WORKSPACE && mkdir -p $WORKSPACE"
+fi
 
 # Generate build command
 func_log_border
