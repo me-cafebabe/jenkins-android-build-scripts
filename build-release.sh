@@ -127,7 +127,7 @@ while [ "${#}" -gt 0 ]; do
             if ! [ -f "$ENV_SCRIPT" ]; then
                 func_abort_with_msg "Environment script $ENV_SCRIPT is not accessible!"
             fi
-            BUILD_SCRIPT_ARGS+="${1} "
+            BUILD_SCRIPT_ARGS+="${1} ${2} "
             shift
             shift
             ;;
