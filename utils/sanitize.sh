@@ -14,8 +14,9 @@ func_sanitize_var_path() {
 	var_name="$1"
 
 	orig_path=$(eval 'echo $'${var_name})
+	new_path="$(realpath "$orig_path")"
 	if ! [ -z "$orig_path" ]; then
-		eval $var_name"=$(realpath ${orig_path})"
+		eval $var_name"='${new_path}'"
 	fi
 }
 
