@@ -316,6 +316,7 @@ fi
 func_log_border
 BUILD_CMD+="cd ${TREE_PATH}"
 BUILD_CMD+=" && export LC_ALL=C"
+BUILD_CMD+=" && unset WORKSPACE"
 if [ "$ALLOW_MISSING_DEPENDENCIES" == "true" ]; then
     BUILD_CMD+=" && export ALLOW_MISSING_DEPENDENCIES=true"
 fi
